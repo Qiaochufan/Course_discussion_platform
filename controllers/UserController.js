@@ -27,7 +27,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
     const createdUser = await User.create(userObject);
 
-    if (createdUser) { // user object created successfully
+    if (createdUser) { 
         res.status(201).json({
             user: createdUser.toUserResponse()
         })
@@ -45,7 +45,6 @@ const registerUser = asyncHandler(async (req, res) => {
 // @access Private
 // @return User
 const getCurrentUser = asyncHandler(async (req, res) => {
-    // After authentication; email and hashsed password was stored in req
     const email = req.userEmail;
 
     const user = await User.findOne({ email }).exec();
@@ -73,21 +72,21 @@ const userLogin = asyncHandler(async (req, res) => {
         return res.status(400).json({message: "All fields are required"});
     }
 
-    const loginUser = await User.findOne({ email: user.email }).exec();
+const DUMMY_HASH = "$2b$10$CwTycUXWue0Thq9StjUM0uJ8vSKFRZOIf2NCVFqZQxUb9V1qWjgLK";
+const loginUser = await User.findOne({ email: user.email }).exec();
 
+const match = await bcrypt.compare(
+    user.password,
+    loginUser ? loginUser.password : DUMMY_HASH
+);
+//make sure attacker does not know if the email or username exists
 
-    if (!loginUser) {
-        return res.status(404).json({message: "User Not Found"});
-    }
-
-    const match = await bcrypt.compare(user.password, loginUser.password);
-
-    if (!match) return res.status(401).json({ message: 'Unauthorized: Wrong password' })
-
-    res.status(200).json({
-        user: loginUser.toUserResponse()
+if (!loginUser || !match) {
+    return res.status(401).json({ message: "Invalid email or password" });
+}
+res.status(200).json({
+    user: loginUser.toUserResponse()
     });
-
 });
 
 // @desc update currently logged-in user
@@ -139,9 +138,34 @@ const updateUser = asyncHandler(async (req, res) => {
 
 });
 
+
+// @desc delete currently logged-in user's own account permanently
+// @route DELETE /api/user
+// @access Private
+// @return message
+const deleteUser = asyncHandler(async (req, res) => {
+    const email = req.userEmail;
+
+    const target = await User.findOne({ email }).exec();
+
+    if (!target) {
+        return res.status(404).json({ message: "User Not Found" });
+    }
+
+    // TODO: once Post/Comment models exist, cascade-delete this user's
+    // posts and comments here before removing the user, e.g.:
+    // await Post.deleteMany({ author: target._id });
+    // await Comment.deleteMany({ author: target._id });
+
+    await target.deleteOne();
+
+    res.status(200).json({ message: "Account deleted successfully" });
+});
+
 module.exports = {
     registerUser,
     getCurrentUser,
     userLogin,
-    updateUser
+    updateUser,
+    deleteUser
 }
