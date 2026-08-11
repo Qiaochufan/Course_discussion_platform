@@ -2,7 +2,7 @@ const User = require('../models/User');
 const asyncHandler = require('express-async-handler');
 const bcrypt = require('bcrypt');
 
-
+const jwt = require('jsonwebtoken');
 // @desc registration for a user
 // @route POST /api/users
 // @access Public
@@ -72,20 +72,48 @@ const userLogin = asyncHandler(async (req, res) => {
         return res.status(400).json({message: "All fields are required"});
     }
 
-const DUMMY_HASH = "$2b$10$CwTycUXWue0Thq9StjUM0uJ8vSKFRZOIf2NCVFqZQxUb9V1qWjgLK";
-const loginUser = await User.findOne({ email: user.email }).exec();
+    const DUMMY_HASH = "$2b$10$CwTycUXWue0Thq9StjUM0uJ8vSKFRZOIf2NCVFqZQxUb9V1qWjgLK";
+    const loginUser = await User.findOne({ email: user.email }).exec();
 
-const match = await bcrypt.compare(
-    user.password,
-    loginUser ? loginUser.password : DUMMY_HASH
-);
-//make sure attacker does not know if the email or username exists
+    const match = await bcrypt.compare(
+        user.password,
+        loginUser ? loginUser.password : DUMMY_HASH
+    );
+    // make sure attacker does not know if the email or username exists
 
-if (!loginUser || !match) {
-    return res.status(401).json({ message: "Invalid email or password" });
-}
-res.status(200).json({
-    user: loginUser.toUserResponse()
+    if (!loginUser || !match) {
+        return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    //  access token (short-lived)
+    const accessToken = jwt.sign(
+        { email: loginUser.email, roles: loginUser.roles },
+        process.env.ACCESS_TOKEN_SECRET,
+        { expiresIn: '15m' }
+    );
+
+    // create refresh token (long-lived)
+    const refreshToken = jwt.sign(
+        { email: loginUser.email },
+        process.env.REFRESH_TOKEN_SECRET,
+        { expiresIn: '7d' }
+    );
+
+
+    loginUser.refreshToken = refreshToken;
+    await loginUser.save();
+
+    // send refresh token as an httpOnly cookie
+    res.cookie('jwt', refreshToken, {
+        httpOnly: true,
+        secure: false, // set to true once you deploy with HTTPS
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days in ms
+    });
+
+    res.status(200).json({
+        accessToken,
+        user: loginUser.toUserResponse()
     });
 });
 
