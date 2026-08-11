@@ -37,4 +37,13 @@ const userSchema = new mongoose.Schema(
   { timestamps: true } // adds createdAt / updatedAt automatically
 );
 
+userSchema.methods.toUserResponse = function () {
+    return {
+        id: this._id,
+        username: this.username,
+        email: this.email,
+        roles: this.roles
+    };
+};
+
 module.exports = mongoose.model('User', userSchema);
