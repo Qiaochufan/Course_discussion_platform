@@ -122,7 +122,7 @@ const updateUser = asyncHandler(async (req, res) => {
     if (user.username) {
          const existingName = await User.findOne({ username: user.username }).exec();
             if (existingName && existingName._id.toString() !== target._id.toString()) {
-                return res.status(409).json({ message: "This username is already in use" });
+                return res.status(409).json({ message: "This username has already been used" });
             }
         target.username = user.username;
     }
