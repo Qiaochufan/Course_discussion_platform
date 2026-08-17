@@ -87,7 +87,7 @@ const userLogin = asyncHandler(async (req, res) => {
 
     //  access token (short-lived)
     const accessToken = jwt.sign(
-        { email: loginUser.email, roles: loginUser.roles },
+        { id: loginUser._id,email: loginUser.email, roles: loginUser.roles },
         process.env.ACCESS_TOKEN_SECRET,
         { expiresIn: '15m' }
     );

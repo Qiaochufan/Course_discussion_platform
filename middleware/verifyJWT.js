@@ -16,6 +16,7 @@ const verifyJWT = (req, res, next) => {
             if (err) {
                 return res.status(403).json({ message: 'Forbidden: Invalid or expired token' });
             }
+            req.userId = decoded.id;
             req.userEmail = decoded.email;
             req.userRoles = decoded.roles;
             next();
